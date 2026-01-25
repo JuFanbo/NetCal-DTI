@@ -8,4 +8,5 @@ if __name__ == "__main__":
     performance("DrugBAN",DrugBAN(),64,5e-5)
     performance("ML_DTI",ML_DTI(),256,1e-3)
     performance("HyperAttentionDTI",HyperAttentionDTI(),32,5e-5)
-    performance("TransformerCPI",TransformerCPI(),64,1e-4)
+    performance("TransformerCPI",TransformerCPI(),64,1e-3)
+    #use AdamW for TransformerCPI,weight_decay = 1e-4
