@@ -1,7 +1,5 @@
 device = 'cuda'
 import copy
-from sklearn.metrics import roc_auc_score, auc, precision_recall_curve, precision_score, recall_score, f1_score, \
-    accuracy_score
 from utils import *
 
 class Case:
@@ -19,7 +17,7 @@ class Case:
 
     def train(self):
         self.case_data_lst = [Case_data(i) for i in self.obj]
-        batch_size = 128
+        batch_size = 256
         lr = 3e-4
         pt = 0
         best = 0
@@ -87,3 +85,9 @@ class Case:
         perf = [accuracy, recall, precision, F1, auc_score, aupr]
         perf = [round(i, 5) for i in perf]
         return perf
+'''
+for i in range(100):
+    model = NetCalDTI().to('cuda')
+    case=Case(model,'frequency',obj=['DB02546'])
+    case.train()
+'''

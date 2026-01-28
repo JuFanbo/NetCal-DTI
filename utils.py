@@ -173,16 +173,11 @@ class Case_data:
             self.dict[i[0]] = float(i[1])
 
     def update(self, model, dl: Loader, mode='direct'):
-        """
-        更新分数字典，支持两种模式
+        '''
         Args:
-            mode: 'direct' - 直接加分数模式
-                  'frequency' - 频率模式（前10%加一）
-                  Update the score dictionary, supporting two modes
-Args:
-mode: 'direct' - direct addition mode
-'frequency' - frequency mode (add one to the top 10%)
-        """
+        mode: 'direct' - direct addition mode
+        'frequency' - frequency mode (add one to the top 10%)
+        '''
         if self.count >= 100:
             print('Have Already Trained 100 Runs!!!')
             return
@@ -191,34 +186,18 @@ mode: 'direct' - direct addition mode
             new_dict = get_dict(self.x, model, dl)
 
             if mode == 'direct':
-                # 直接加分数模式：原逻辑保持不变
                 for i in new_dict:
                     if i in self.dict:
                         self.dict[i] += float(new_dict[i])
 
             elif mode == 'frequency':
-                # 频率模式：只有排名前10%的项频率加一
-                # 首先确保所有新键都存在于字典中
-                for i in new_dict:
-                    if i not in self.dict:
-                        self.dict[i] = 0
+                all_scores = list(new_dict.values())
+                all_scores.sort(reverse=True)
+                threshold = all_scores[int(len(all_scores) * 0.1)]
+                for i in self.dict:
+                    if new_dict[i] >= threshold:
+                        self.dict[i] += 1
 
-                # 计算前10%的阈值
-                if self.dict:  # 确保字典不为空
-                    all_scores = list(self.dict.values())
-                    all_scores.sort(reverse=True)  # 降序排列
-                    threshold_index = max(0, int(len(all_scores) * 0.1) - 1)  # 前10%的索引
-                    threshold_score = all_scores[threshold_index] if threshold_index < len(all_scores) else all_scores[
-                        -1]
-
-                    # 只对分数排名前10%的项加一
-                    for i in self.dict:
-                        if self.dict[i] >= threshold_score:
-                            self.dict[i] += 1
-            else:
-                raise ValueError("模式参数错误，请选择 'direct' 或 'frequency'")
-
-            # 生成并保存结果（原逻辑保持不变）
             _lst = []
             tmp_lst = pd.read_csv(f'Data/drug_info.csv').values.tolist()
             dic = {i[0]: i[1] for i in tmp_lst}
