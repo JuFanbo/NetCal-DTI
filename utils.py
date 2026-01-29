@@ -9,9 +9,6 @@ from torch.nn import CrossEntropyLoss
 from sklearn.metrics import roc_auc_score,auc,precision_recall_curve,precision_score,recall_score,f1_score,accuracy_score
 from tqdm import tqdm
 def resample():
-    random.seed(754895)
-    numpy.random.seed(754895)
-    torch.manual_seed(754895)
     lst = pd.read_csv('Data/drugbank.csv').values.tolist()
     lst = [i for i in lst if i[2] == 1]
     g = nx.Graph()
@@ -76,9 +73,7 @@ class Training:
         self.model = model
 
     def train(self,batch_size,lr,epochs=500):
-        random.seed(754895)
-        numpy.random.seed(754895)
-        torch.manual_seed(754895)
+
         pt = 0
         best = 0
         criterion = CrossEntropyLoss()
@@ -226,9 +221,6 @@ def performance(model_name,model,batch_size,lr):
     for dataset in ['drugbank','biosnap','davis']:
         result_lst = []
         for _ in range(5):
-            random.seed(754895)
-            numpy.random.seed(754895)
-            torch.manual_seed(754895)
             model = _model.to('cuda')
             t = Training(model=model, dti_path=f'Data/{dataset}.csv')
             result = t.train(batch_size=batch_size,lr=lr)
@@ -237,9 +229,6 @@ def performance(model_name,model,batch_size,lr):
             df.to_csv(f'{dataset}_{model_name}.csv', index=False)
 
 def comparison():
-    random.seed(754895)
-    numpy.random.seed(754895)
-    torch.manual_seed(754895)
     _lst = pd.read_csv('Data/drugbank.csv').values.tolist()
     targets = [i[0] for i in _lst]
     drugs = [i[1] for i in _lst]
