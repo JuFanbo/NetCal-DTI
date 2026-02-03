@@ -1,0 +1,9 @@
+receptor = 6Q4G.pdbqt
+ligand = temp.pdbqt
+center_x = -5.25
+center_y = 3.75
+center_z = -19.25
+size_x = 37.5
+size_y = 37.5
+size_z = 37.5
+out = lig_out.pdbqt
