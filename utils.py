@@ -217,7 +217,7 @@ class Case_data:
             df.to_csv(f'{self.x}.csv', index=False)
 
 def performance(model_name,_model,batch_size,lr,runs=5,patience=10):
-    for dataset in ['drugbank','davis','bosnap','bindingdb']:
+    for dataset in ['drugbank','davis','biosnap','bindingdb']:
         result_lst = []
         for _ in range(runs):
             model = _model().to('cuda')
