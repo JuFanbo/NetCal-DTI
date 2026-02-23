@@ -41,7 +41,7 @@ class Case:
             print(f'Patience:{pt} Performance:{perf}')
             score = perf[-1]
             if score > best:
-                torch.save(self.best_model.state_dict(), "state_dict.pth")
+                torch.save(self.model.state_dict(), "state_dict.pth")
                 self.best_dl = self.dl
                 best = score
                 pt = 0
