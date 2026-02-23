@@ -2,7 +2,7 @@
 
 ## Overview
 
-NetCal-DTI is a novel hybrid framework that addresses systematic overconfidence in inductive drug-target interaction (DTI) prediction by reframing it as a confidence calibration problem under biological structural constraints. The framework integrates inductive molecular evidence with global network topology calibration to produce more reliable and biologically plausible predictions.
+NetCal-DTI is a hybrid framework that reframes DTI prediction as a confidence calibration problem under biological structural constraints. By leveraging Laplacian eigenvectors (LEs) to encode the global topology of the DTI interactome, NetCal-DTI introduces a Network Calibration Module that acts as a structural adjudicator, dynamically recalibrating inductive predictions against network-level consistency. Evaluations across three benchmarks (DrugBank, BIOSNAP and BindingDB) demonstrate that NetCal-DTI achieves substantial precision gains while maintaining competitive recall and AUROC. Crucially, case studies reveal that network calibration suppresses 59.2% of false positives at the cost of only a minimal increase in new errors. Molecular docking validates the superior binding energetics of high-confidence candidates, and pathway enrichment analyses confirm the biological coherence of predictions for the HDAC inhibitor Tucidinostat. NetCal-DTI thus establishes a new paradigm for trustworthy DTI prediction, where global network topology serves not merely as an additional feature but as a principled regularizer for confidence calibration. 
 
 ## Key Features
 
@@ -126,14 +126,6 @@ Implemented state-of-the-art models for comparison:
 - **TransformerCPI**: Transformer-based sequence-to-sequence model
 - **DrugBAN**: Bilinear attention network with domain adaptation
 
-## Molecular Docking Validation
-
-The framework includes comprehensive molecular docking validation:
-
-```bash
-# Run docking validation for CDK2 target
-python docking/dock.py --target CDK2 --config docking/CDK2/config.txt
-```
 
 ## Key Methodological Contributions
 
@@ -141,25 +133,6 @@ python docking/dock.py --target CDK2 --config docking/CDK2/config.txt
 2. **Network-Aware Calibration**: Leverages global DTI topology as structural prior
 3. **Multi-Scale Validation**: Comprehensive evaluation spanning benchmarks, molecular docking, and pathway analysis
 
-## Applications
-
-- **Virtual Screening**: High-precision candidate prioritization
-- **Drug Repositioning**: Biologically coherent target prediction
-- **Systems Pharmacology**: Multi-target interaction profiling
-
-## Citation
-
-If you use NetCal-DTI in your research, please cite our paper:
-
-```bibtex
-@article{ju2025netcal,
-  title={NetCal-DTI: A Network Topology-Calibrated Hybrid Framework for High-Precision Inductive Drug-Target Interaction Prediction},
-  author={Ju, Fanbo and Zhang, Yuxin and Luo, Longfei and Zhao, Qixuan and Yang, Bin and Hu, Guang},
-  journal={Nature Communications},
-  year={2025},
-  doi={10.1038/s41467-025-XXXXX-X}
-}
-```
 
 ## Contact
 
@@ -170,9 +143,6 @@ If you use NetCal-DTI in your research, please cite our paper:
 - **Institution**: School of Life Sciences, Suzhou Medical College of Soochow University
 - **Repository**: https://github.com/JuFanbo/NetCal-DTI
 
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Acknowledgments
 
