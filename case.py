@@ -1,23 +1,19 @@
 device = 'cuda'
-import copy
 from utils import *
-
 class Case:
-    def __init__(self, model, mode,obj=None):
+    def __init__(self, model, mode,obj):
         self.mode = mode
-        if obj is None:
-            obj = ['DB06334', 'P24941']
         resample()
         self.obj = obj
         self.dl = Loader('Data/case.csv')
-        self.model = model
+        self.model = model().to(device)
+        self.best_model = model().to(device)
         self.case_data = None
         self.best_dl = None
-        self.best_model = None
 
     def train(self):
         self.case_data_lst = [Case_data(i) for i in self.obj]
-        batch_size = 256
+        batch_size = 128
         lr = 3e-4
         pt = 0
         best = 0
@@ -45,15 +41,15 @@ class Case:
             print(f'Patience:{pt} Performance:{perf}')
             score = perf[-1]
             if score > best:
-                self.best_model = copy.deepcopy(self.model)
-                self.best_dl = copy.deepcopy(self.dl)
+                torch.save(self.best_model.state_dict(), "state_dict.pth")
+                self.best_dl = self.dl
                 best = score
                 pt = 0
             else:
                 pt += 1
-                if pt > 7:
+                if pt > 10:
                     break
-        torch.save(self.best_model.state_dict(), "state_dict.pth")
+        self.best_model.load_state_dict(torch.load("state_dict.pth",weights_only=True))
         for i in self.case_data_lst:
             i.update(model=self.best_model, dl=self.best_dl,mode=self.mode)
         print(f'Updated Case Data!')
@@ -87,7 +83,7 @@ class Case:
         return perf
 '''
 for i in range(100):
-    model = NetCalDTI().to('cuda')
+    model = NetCalDTI
     case=Case(model,'frequency',obj=['DB02546'])
     case.train()
 '''
