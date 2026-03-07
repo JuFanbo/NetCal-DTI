@@ -50,7 +50,9 @@ performance(
     NetCalDTI,
     batch_size=256,
     lr=5e-4,
-    runs=5
+    runs=5,
+    target_cold=False,
+    drug_cold=False
 )
 ```
 
