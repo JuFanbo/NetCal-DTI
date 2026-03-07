@@ -57,10 +57,15 @@ def mlp(i,h,o):
         Linear(i, h),
         BatchNorm1d(h),
         ReLU(),
+        Dropout(0.3),
+        Linear(h, h),
+        BatchNorm1d(h),
+        ReLU(),
+        Dropout(0.3),
         Linear(h, o),
         BatchNorm1d(o),
         ReLU(),
-        Dropout(0.2),
+        Dropout(0.3),
     )
 class GIN_block(nn.Module):
     def __init__(self, i,o):
