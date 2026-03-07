@@ -1,13 +1,8 @@
-import random
-from copy import copy
-
-import numpy.random
-
-from NetCalDTI import *
 from dataloader import *
 from torch.nn import CrossEntropyLoss
 from sklearn.metrics import roc_auc_score,auc,precision_recall_curve,precision_score,recall_score,f1_score,accuracy_score
 from tqdm import tqdm
+
 def resample():
     lst = pd.read_csv('Data/drugbank.csv').values.tolist()
     lst = [i for i in lst if i[2] == 1]
@@ -66,10 +61,11 @@ def get_dict(x,model,dl:Loader):
         else:
             dict[i[1]] = float(j)
     return dict
+
 class Training:
-    def __init__(self, model,dti_path,k=128):
+    def __init__(self, model,dti_path,target_cold=False,drug_cold=False):
         self.dti_path = dti_path
-        self.dl = Loader(dti_path,k=k)
+        self.dl = Loader(dti_path,target_cold=target_cold,drug_cold=drug_cold)
         self.model = model
 
     def train(self,batch_size,lr,epochs=500,patience=10):
@@ -93,12 +89,12 @@ class Training:
                 out = self.model(emb1, emb2, seq, esm, smiles, mole).squeeze()
                 loss = criterion(out, y)
                 total_loss += loss.item()
-                loss.backward()
-                optimizer.step()
+                loss.backward()#反向传播
+                optimizer.step()#lr 学习率 太大 过拟合 太小 欠拟合
                 optimizer.zero_grad()
             perf = self.performance(self.model, self.dl.vali,batch_size)
             print(f'Patience:{pt} Performance:{perf}')
-            score = perf[-1]
+            score = perf[-3]
             if score > best:
                 best = score
                 torch.save(self.model.state_dict(), 'state_dict.pth')
@@ -107,7 +103,7 @@ class Training:
                 pt = 0
             else:
                 pt += 1
-                if pt > patience:
+                if pt > patience and _ > 16:
                     break
         state_dict = torch.load('state_dict.pth',weights_only=True)
         self.model.load_state_dict(state_dict)
@@ -216,14 +212,23 @@ class Case_data:
             df = pd.DataFrame(lst)
             df.to_csv(f'{self.x}.csv', index=False)
 
-def performance(model_name,_model,batch_size,lr,runs=5,patience=10):
-    for dataset in ['drugbank','davis','biosnap','bindingdb']:
+def performance(model_name,_model,batch_size,lr,target_cold=False,drug_cold=False,runs=5,patience=10):
+    for dataset in ['drugbank','biosnap','bindingdb']:
         result_lst = []
         for _ in range(runs):
             model = _model().to('cuda')
-            t = Training(model=model, dti_path=f'Data/{dataset}.csv')
+            t = Training(model=model, target_cold=target_cold,drug_cold=drug_cold,dti_path=f'Data/{dataset}.csv')
             result = t.train(batch_size=batch_size,lr=lr,patience=patience)
             result_lst.append(result)
             df = pd.DataFrame(result_lst)
-            df.to_csv(f'{dataset}_{model_name}.csv', index=False)
+            mode = ''
+            if target_cold and not drug_cold:
+                mode = '_target_cold'
+            if not target_cold and drug_cold:
+                mode = '_drug_cold'
+            if target_cold and drug_cold:
+                mode = '_all_cold'
+            df.to_csv(f'{dataset}_{model_name}{mode}.csv', index=False)
+
+72.76±2.28	63.29±3.69	88.99±1.96	73.92±2.87	84.80±1.84	90.69±1.41
 

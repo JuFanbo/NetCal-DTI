@@ -1,9 +1,57 @@
 import scipy.sparse as sp,scipy.sparse.linalg as li,\
     random,networkx as nx,pandas as pd,pickle,torch,numpy as np,os
 from Data.mole_pyg import pyG_data
+from rdkit import Chem
+from rdkit import DataStructs
+from rdkit.Chem import rdFingerprintGenerator
+from tqdm import tqdm
 device = 'cuda'
+
+
+def split(dti_lst,target_cold, drug_cold):
+    random.shuffle(dti_lst)
+    limit = len(dti_lst)//10
+    collected,vali,test = [],[],[]
+    for i in range(len(dti_lst)):
+        if i in collected:
+            continue
+        if len(vali) > limit:
+            break
+        vali.append(dti_lst[i])
+        collected.append(i)
+        if target_cold:
+            for j in range(len(dti_lst)):
+                if dti_lst[j][0] == dti_lst[i][0]:
+                    vali.append(dti_lst[j])
+                    collected.append(j)
+        if drug_cold:
+            for j in range(len(dti_lst)):
+                if dti_lst[j][1] == dti_lst[i][1]:
+                    vali.append(dti_lst[j])
+                    collected.append(j)
+    for i in range(len(dti_lst)):
+        if i in collected:
+            continue
+        if len(test) > limit:
+            break
+        test.append(dti_lst[i])
+        collected.append(i)
+        if target_cold:
+            for j in range(len(dti_lst)):
+                if dti_lst[j][0] == dti_lst[i][0]:
+                    test.append(dti_lst[j])
+                    collected.append(j)
+        if drug_cold:
+            for j in range(len(dti_lst)):
+                if dti_lst[j][1] == dti_lst[i][1]:
+                    test.append(dti_lst[j])
+                    collected.append(j)
+    train = [dti_lst[i] for i in range(len(dti_lst)) if i not in collected]
+    return train,vali,test
+
+
 class Loader:
-    def __init__(self,dti_file,redo_le=True,save_test=True,k=128):
+    def __init__(self,dti_file,redo_le=True,save_test=True,target_cold=False,drug_cold=False,lap_dim=128,k=2):
         ds = 'drugbank'
         if 'davis' in dti_file:
             ds = 'davis'
@@ -12,6 +60,15 @@ class Loader:
         mole_file = f'Data/{ds}.pickle'
         with open(mole_file ,'rb') as f:
             self.mole_dic = pickle.load(f)
+        with open('Data/esm.pickle','rb') as f:
+            self.esm_dic = pickle.load(f)
+        self.lap_dim = lap_dim
+        self.k = k
+        self.drug_sim_df = pd.read_csv('./Data/drug_top10_similarity.csv')
+        self.protein_sim_df = pd.read_csv('./Data/protein_top10_similarity.csv')
+        dti_lst = pd.read_csv(dti_file).values.tolist()
+        self.targets = list(set([i[0] for i in dti_lst]))
+        self.drugs = list(set([i[1] for i in dti_lst]))
         lst = pd.read_csv('Data/seq.csv').values.tolist()
         self.seq_dic = {}
         for i in lst:
@@ -20,41 +77,59 @@ class Loader:
         self.smiles_dic = {}
         for i in lst:
             self.smiles_dic[i[0]] = i[1]
-        with open('Data/esm.pickle','rb') as f:
-            self.esm_dic = pickle.load(f)
-        self.DTIs = pd.read_csv(dti_file).values.tolist()
-        self.k = k
-        self.nodes = list(set([i[0] for i in self.DTIs]))+list(set([i[1] for i in self.DTIs]))
-        random.shuffle(self.DTIs)
-        x = int(0.1 * len(self.DTIs))
-        self.train = self.DTIs[:8 * x]
-        self.vali = self.DTIs[8 * x:9 * x]
-        self.test = self.DTIs[9 * x:]
+        self.train,self.vali,self.test = split(dti_lst,target_cold, drug_cold)
         df = pd.DataFrame(self.test)
         if save_test:
             df.to_csv('Data/test.csv',index=False)
         self.backup_mole = pyG_data('CC')
         if redo_le:
             _G = nx.Graph()
-            for i in self.nodes:
-                _G.add_edge(i, i)
             for i in random.sample(self.train,int(0.5*len(self.train))):
                 if i[2] == 1:
                     _G.add_edge(i[0], i[1])
             self.network_embedding = self.le(_G)
+            self.computed_keys = list(self.network_embedding.keys())
+            print("checking targets...")
+            for i in tqdm(self.targets):
+                if not i in self.computed_keys:
+                    self.network_embedding[i] = self.target_nearest_k(i,k)
+            print("checking drugs...")
+            for i in tqdm(self.drugs):
+                if not i in self.computed_keys:
+                    self.network_embedding[i] = self.drug_nearest_k(i,k)
             with open('le.pickle','wb') as f:
                 pickle.dump(self.network_embedding,f)
         else:
             with open('le.pickle','rb') as f:
                 self.network_embedding = pickle.load(f)
 
+    def target_nearest_k(self,target_id,k):
+        try:
+            matches = self.protein_sim_df[self.protein_sim_df['query_protein'] == target_id]
+            k_neighbors = matches[matches['similar_protein'].isin(self.computed_keys)]
+            k_neighbors = k_neighbors.head(k)[['similar_protein', 'similarity']].values.tolist()
+            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+            return torch.stack(tensors).mean(dim=0)
+        except BaseException:
+            return torch.zeros(self.lap_dim)
+
+    def drug_nearest_k(self, drug_id, k):
+        try:
+            matches = self.drug_sim_df[self.drug_sim_df['query_drug'] == drug_id]
+            k_neighbors = matches[matches['similar_drug'].isin(self.computed_keys)]
+            k_neighbors = k_neighbors.head(k)[['similar_drug', 'similarity']].values.tolist()
+            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+            return torch.stack(tensors).mean(dim=0)
+        except BaseException:
+            return torch.zeros(self.lap_dim)
+
 
     def prepare_data(self,lst):
         emb1,emb2,seq,esm,smiles,mole,y = [],[],[],[],[],[],[]
         for i in lst:
             y.append(float(i[2]))
-            emb1.append(self.network_embedding[i[0]] if i[0] in self.network_embedding else torch.zeros(128))
-            emb2.append(self.network_embedding[i[1]] if i[1] in self.network_embedding else torch.zeros(128))
+            emb1.append(self.network_embedding[i[0]] if i[0] in self.network_embedding else self.target_nearest_k(i[0]))
+            emb2.append(self.network_embedding[i[1]] if i[1] in self.network_embedding else self.drug_nearest_k(i[1]))
             seq.append(self.seq_dic[i[0]] if i[0] in self.seq_dic else 'AAA')
             smiles.append(self.smiles_dic[i[1]] if i[1] in self.smiles_dic else 'AAA')
             if i[0] in self.esm_dic:
@@ -85,7 +160,7 @@ class Loader:
         D_inv_sqrt = sp.diags(1 / np.sqrt(list(degrees.values())).clip(1), dtype=float)
         L = sp.eye(G.number_of_nodes()) - D_inv_sqrt @ A @ D_inv_sqrt
         L = sp.csr_matrix(L)
-        EigVal, EigVec = li.eigsh(L, return_eigenvectors=True, k=self.k, which="SA")
+        EigVal, EigVec = li.eigsh(L, return_eigenvectors=True, k=self.lap_dim, which="SA")
         _X = np.real(EigVec)
         for i in i2n:
             emb_dic[i2n[i]] = torch.tensor(_X[i].tolist()).float().cpu()

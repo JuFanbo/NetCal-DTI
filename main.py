@@ -1,4 +1,5 @@
 from utils import *
+from NetCalDTI import NetCalDTI
 from Benchmark.CNNGIN import CNNGIN
 from Benchmark.attention import attention
 from Benchmark.GraphDTA import GraphDTA
@@ -16,16 +17,13 @@ def ablation():
     performance("3", NetCalDTI, 256, 5e-4, runs=10)
 
 
-def perf():
-    performance("NetCal-DTI", NetCalDTI, 256, 5e-4)
-    performance("GraphDTA", GraphDTA, 512, 0.0005)
-    performance("DrugBAN", DrugBAN, 64, 5e-5)
-    performance("ML_DTI", ML_DTI, 256, 1e-3)
-    performance("HyperAttentionDTI", HyperAttentionDTI, 32, 5e-5)
-    performance("TransformerCPI", TransformerCPI, 64, 1e-3)
-    # use AdamW for TransformerCPI,weight_decay = 1e-4
-
+def perf(target_cold,drug_cold):
+    performance("NetCal-DTI", NetCalDTI,target_cold=target_cold,drug_cold=drug_cold,batch_size=256,lr=5e-4)
+    performance("GraphDTA", GraphDTA,target_cold=target_cold,drug_cold=drug_cold,batch_size=512,lr=0.0005)
+    performance("DrugBAN", DrugBAN, target_cold=target_cold,drug_cold=drug_cold,batch_size=64,lr=5e-5)
+    performance("ML_DTI", ML_DTI, target_cold=target_cold,drug_cold=drug_cold,batch_size=256,lr=1e-3)
+    performance("HyperAttentionDTI", HyperAttentionDTI, target_cold=target_cold,drug_cold=drug_cold,batch_size=32,lr=5e-5)
+    performance("TransformerCPI", TransformerCPI, target_cold=target_cold,drug_cold=drug_cold,batch_size=64,lr=1e-3)
 
 if __name__ == "__main__":
-    perf()
-    ablation()
+    performance("NetCal-DTI", NetCalDTI,drug_cold=True,batch_size=256,lr=5e-4)
