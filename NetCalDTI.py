@@ -1,8 +1,8 @@
 device = 'cuda'
-import torch.nn.functional as F, torch, torch.nn as nn,numpy as np,random
+import torch.nn.functional as F, torch.nn as nn
 from dataloader import *
 from torch_geometric.nn import GINConv
-from torch.nn import Linear, ReLU, Sequential, Dropout, BatchNorm1d, MaxPool1d,GELU,Sigmoid, CrossEntropyLoss
+from torch.nn import Linear, ReLU, Sequential, Dropout, BatchNorm1d, MaxPool1d,Sigmoid
 from torch_geometric.data import Batch
 class ChannelAttention(nn.Module):
     def __init__(self, in_channels, ratio):
@@ -52,16 +52,15 @@ class CBAM(nn.Module):
 def pad(seq_lst,limit):
     lst = [F.pad(i,(0,0,0,limit-i.shape[0]),value=0) for i in seq_lst]
     return torch.stack(lst,dim=0)
-def mlp(i,h,o,dropout=0.1):
+def mlp(i,h,o):
     return Sequential(
         Linear(i, h),
         BatchNorm1d(h),
-        GELU(),
-        Dropout(dropout),
+        ReLU(),
         Linear(h, o),
         BatchNorm1d(o),
-        GELU(),
-        Dropout(dropout)
+        ReLU(),
+        Dropout(0.2),
     )
 class GIN_block(nn.Module):
     def __init__(self, i,o):
@@ -158,14 +157,9 @@ class NetCalDTI(torch.nn.Module):
         self.sigmoid = Sigmoid()
         self.protein_fuser = mlp(self.conv*4+1152,1024,self.conv*4)
         self.dock = mlp(self.conv*8,1024,256)
-        self.le_mlp = Sequential(
-            nn.Linear(k*2,k),
-            nn.ReLU(),
-            Dropout(0.5),
-            nn.Linear(k,k),
-        )
+        self.le_mlp = mlp(k*2,k,k//2)
         self.output = Sequential(
-            mlp(256+k,256,128),
+            mlp(256+k//2,512,128),
             Linear(128,2))
 
 
