@@ -52,18 +52,16 @@ class CBAM(nn.Module):
 def pad(seq_lst,limit):
     lst = [F.pad(i,(0,0,0,limit-i.shape[0]),value=0) for i in seq_lst]
     return torch.stack(lst,dim=0)
-def mlp(i,h,o):
+def mlp(i,h,o,dropout=0.2):
     return Sequential(
         Linear(i, h),
         BatchNorm1d(h),
         ReLU(),
-        Linear(h, h),
-        BatchNorm1d(h),
-        ReLU(),
+        Dropout(dropout),
         Linear(h, o),
         BatchNorm1d(o),
         ReLU(),
-        Dropout(0.1),
+        Dropout(dropout),
     )
 class GIN_block(nn.Module):
     def __init__(self, i,o):
@@ -160,9 +158,13 @@ class NetCalDTI(torch.nn.Module):
         self.sigmoid = Sigmoid()
         self.protein_fuser = mlp(self.conv*4+1152,1024,self.conv*4)
         self.dock = mlp(self.conv*8,1024,256)
-        self.le_mlp = mlp(k*2,k,k//2)
+        self.le_mlp = mlp(k*2,k,k//2,0.5)
         self.output = Sequential(
-            mlp(256+k//2,512,128),
+            Linear(256+k//2,256),
+            ReLU(),
+            Dropout(0.2),
+            Linear(256, 128),
+            ReLU(),
             Linear(128,2))
 
 
