@@ -158,9 +158,14 @@ class NetCalDTI(torch.nn.Module):
         self.sigmoid = Sigmoid()
         self.protein_fuser = mlp(self.conv*4+1152,1024,self.conv*4)
         self.dock = mlp(self.conv*8,1024,256)
-        self.le_mlp = mlp(k*2,512,256,0.4)
+        self.le_mlp = Sequential(
+            nn.Linear(k*2,k),
+            nn.ReLU(),
+            Dropout(0.5),
+            nn.Linear(k,k),
+        )
         self.output = Sequential(
-            mlp(512,256,128),
+            mlp(256+k,256,128),
             Linear(128,2))
 
 

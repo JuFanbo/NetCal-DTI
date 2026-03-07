@@ -84,6 +84,8 @@ class Loader:
         self.backup_mole = pyG_data('CC')
         if redo_le:
             _G = nx.Graph()
+            for i in list(set([j[0] for j in self.train]+[j[1] for j in self.train])):
+                _G.add_edge(i,i)
             for i in random.sample(self.train,int(0.5*len(self.train))):
                 if i[2] == 1:
                     _G.add_edge(i[0], i[1])
@@ -104,24 +106,18 @@ class Loader:
                 self.network_embedding = pickle.load(f)
 
     def target_nearest_k(self,target_id,k):
-        try:
-            matches = self.protein_sim_df[self.protein_sim_df['query_protein'] == target_id]
-            k_neighbors = matches[matches['similar_protein'].isin(self.computed_keys)]
-            k_neighbors = k_neighbors.head(k)[['similar_protein', 'similarity']].values.tolist()
-            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
-            return torch.stack(tensors).mean(dim=0)
-        except BaseException:
-            return torch.zeros(self.lap_dim)
+        matches = self.protein_sim_df[self.protein_sim_df['query_protein'] == target_id]
+        k_neighbors = matches[matches['similar_protein'].isin(self.computed_keys)]
+        k_neighbors = k_neighbors.head(k)[['similar_protein', 'similarity']].values.tolist()
+        tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        return torch.stack(tensors).mean(dim=0) if len(tensors)>0 else torch.zeros(self.lap_dim)
 
     def drug_nearest_k(self, drug_id, k):
-        try:
-            matches = self.drug_sim_df[self.drug_sim_df['query_drug'] == drug_id]
-            k_neighbors = matches[matches['similar_drug'].isin(self.computed_keys)]
-            k_neighbors = k_neighbors.head(k)[['similar_drug', 'similarity']].values.tolist()
-            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
-            return torch.stack(tensors).mean(dim=0)
-        except BaseException:
-            return torch.zeros(self.lap_dim)
+        matches = self.drug_sim_df[self.drug_sim_df['query_drug'] == drug_id]
+        k_neighbors = matches[matches['similar_drug'].isin(self.computed_keys)]
+        k_neighbors = k_neighbors.head(k)[['similar_drug', 'similarity']].values.tolist()
+        tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        return torch.stack(tensors).mean(dim=0) if len(tensors)>0 else torch.zeros(self.lap_dim)
 
 
     def prepare_data(self,lst):

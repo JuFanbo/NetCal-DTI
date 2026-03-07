@@ -230,5 +230,4 @@ def performance(model_name,_model,batch_size,lr,target_cold=False,drug_cold=Fals
                 mode = '_all_cold'
             df.to_csv(f'{dataset}_{model_name}{mode}.csv', index=False)
 
-72.76±2.28	63.29±3.69	88.99±1.96	73.92±2.87	84.80±1.84	90.69±1.41
 
