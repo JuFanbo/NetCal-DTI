@@ -1,12 +1,38 @@
 import scipy.sparse as sp,scipy.sparse.linalg as li,\
     random,networkx as nx,pandas as pd,pickle,torch,numpy as np,os
 from Data.mole_pyg import pyG_data
-from rdkit import Chem
-from rdkit import DataStructs
+from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 from tqdm import tqdm
+import numpy as np,torch
 device = 'cuda'
 
+
+def find_similar_drugs(query_smiles, smiles_dict, k):
+    query_mol = Chem.MolFromSmiles(query_smiles)
+    fp_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=64)
+    query_fp = fp_gen.GetFingerprint(query_mol)
+    results = []
+    for drug_id, smiles in smiles_dict.items():
+        try:
+            mol = Chem.MolFromSmiles(smiles)
+            fp = fp_gen.GetFingerprint(mol)
+            sim = DataStructs.TanimotoSimilarity(query_fp, fp)
+            results.append((drug_id, sim))
+        except:
+            pass
+    results.sort(key=lambda x: x[1], reverse=True)
+    return [drug_id for drug_id, _ in results[:k]]
+
+
+def find_similar_proteins(query_vector, protein_vectors, k):
+    query_vector = query_vector.flatten()
+    sim_scores = {}
+    for pid, vec in protein_vectors.items():
+        vec = vec.flatten()
+        sim = torch.nn.functional.cosine_similarity(query_vector, vec, dim=0)
+        sim_scores[pid] = sim.item()
+    return sorted(sim_scores, key=sim_scores.get, reverse=True)[:k]
 
 def split(dti_lst,target_cold, drug_cold):
     random.shuffle(dti_lst)
@@ -106,17 +132,31 @@ class Loader:
                 self.network_embedding = pickle.load(f)
 
     def target_nearest_k(self,target_id,k):
-        matches = self.protein_sim_df[self.protein_sim_df['query_protein'] == target_id]
-        k_neighbors = matches[matches['similar_protein'].isin(self.computed_keys)]
-        k_neighbors = k_neighbors.head(k)[['similar_protein', 'similarity']].values.tolist()
-        tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        try:
+            matches = self.protein_sim_df[self.protein_sim_df['query_protein'] == target_id]
+            k_neighbors = matches[matches['similar_protein'].isin(self.computed_keys)]
+            k_neighbors = k_neighbors.head(k)[['similar_protein', 'similarity']].values.tolist()
+            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        except:
+            try:
+                dict = {i:self.esm_dic[i] for i in self.esm_dic if i in self.computed_keys}
+                tensors = find_similar_proteins(self.esm_dic[target_id], dict,self.k)
+            except:
+                return torch.zeros(self.lap_dim)
         return torch.stack(tensors).mean(dim=0) if len(tensors)>0 else torch.zeros(self.lap_dim)
 
     def drug_nearest_k(self, drug_id, k):
-        matches = self.drug_sim_df[self.drug_sim_df['query_drug'] == drug_id]
-        k_neighbors = matches[matches['similar_drug'].isin(self.computed_keys)]
-        k_neighbors = k_neighbors.head(k)[['similar_drug', 'similarity']].values.tolist()
-        tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        try:
+            matches = self.drug_sim_df[self.drug_sim_df['query_drug'] == drug_id]
+            k_neighbors = matches[matches['similar_drug'].isin(self.computed_keys)]
+            k_neighbors = k_neighbors.head(k)[['similar_drug', 'similarity']].values.tolist()
+            tensors = [self.network_embedding[i[0]] for i in k_neighbors]
+        except:
+            try:
+                dict = {i: self.smiles_dic[i] for i in self.smiles_dic if i in self.computed_keys}
+                tensors = find_similar_drugs(self.smiles_dic[drug_id], dict,self.k)
+            except:
+                return torch.zeros(self.lap_dim)
         return torch.stack(tensors).mean(dim=0) if len(tensors)>0 else torch.zeros(self.lap_dim)
 
 
@@ -124,8 +164,8 @@ class Loader:
         emb1,emb2,seq,esm,smiles,mole,y = [],[],[],[],[],[],[]
         for i in lst:
             y.append(float(i[2]))
-            emb1.append(self.network_embedding[i[0]] if i[0] in self.network_embedding else self.target_nearest_k(i[0]))
-            emb2.append(self.network_embedding[i[1]] if i[1] in self.network_embedding else self.drug_nearest_k(i[1]))
+            emb1.append(self.network_embedding[i[0]] if i[0] in self.network_embedding else self.target_nearest_k(i[0],self.k))
+            emb2.append(self.network_embedding[i[1]] if i[1] in self.network_embedding else self.drug_nearest_k(i[1],self.k))
             seq.append(self.seq_dic[i[0]] if i[0] in self.seq_dic else 'AAA')
             smiles.append(self.smiles_dic[i[1]] if i[1] in self.smiles_dic else 'AAA')
             if i[0] in self.esm_dic:
