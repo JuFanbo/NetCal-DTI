@@ -1,7 +1,6 @@
 # NetCal-DTI: Network Topology-Calibrated Drug-Target Interaction Prediction
 
 ## Overview
-![image](Fig1.jpg)
 NetCal-DTI is a hybrid framework that reframes DTI prediction as a confidence calibration problem under biological structural constraints. By leveraging Laplacian eigenvectors (LEs) to encode the global topology of the DTI interactome, NetCal-DTI introduces a Network Calibration Module that acts as a structural adjudicator, dynamically recalibrating inductive predictions against network-level consistency. Evaluations across three benchmarks (DrugBank, BIOSNAP and BindingDB) demonstrate that NetCal-DTI achieves substantial precision gains while maintaining competitive recall and AUROC. Crucially, case studies reveal that network calibration suppresses 59.2% of false positives at the cost of only a minimal increase in new errors. Molecular docking validates the superior binding energetics of high-confidence candidates, and pathway enrichment analyses confirm the biological coherence of predictions for the HDAC inhibitor Tucidinostat. NetCal-DTI thus establishes a new paradigm for trustworthy DTI prediction, where global network topology serves not merely as an additional feature but as a principled regularizer for confidence calibration. 
 
 ## Key Features
